@@ -1,4 +1,4 @@
--- Demo for DB_Maker: Catalogue your extensive collection of BetaMax videotape cassettes!
+-- Demo for DB_Maker: Catalog your extensive collection of BetaMax videotape cassettes!
 --
 -- Copyright (C) 2017 by Jeffrey R. Carter
 --
