@@ -249,15 +249,23 @@ package body DB_Maker is
 
    Search_Index : Natural := 0;
 
+   use Ada.Strings.Unbounded;
+
+   use Ada.Characters.Handling;
+
    procedure Search_From (Search_Item : in Element; Prev_Index : in Natural) is
       procedure Check_One (Item : in Element; Continue : out Boolean);
       -- Increments Index. If Index > Prev_Index and Item matches Search_Item, sets Found to True and Continue to False
 
       procedure Check_All is new Lists.Iterate (Action => Check_One);
 
-      Found      : Boolean := False;
-      Index      : Natural := 0;
-      Or_Checked : Boolean := Or_Rad.Checked;
+      type Lowered_List is array (Field_Number) of Unbounded_String;
+
+      Lowered : Lowered_List; -- To_Lower applied to the fields of Search_Item
+      Found   : Boolean := False;
+      Index   : Natural := 0;
+
+      Or_Checked : constant Boolean := Or_Rad.Checked;
 
       procedure Check_One (Item : in Element; Continue : out Boolean) is
          Local : Boolean := not Or_Checked;
@@ -275,13 +283,12 @@ package body DB_Maker is
          All_Fields : for I in Field'Range loop
             Field_Value : declare
                Text : constant String := Value (Item, I);
-               SI   : constant String := Value (Search_Item, I);
             begin -- Field_Value
-               if SI'Length > 0 then
+               if Length (Lowered (I) ) > 0 then
                   if Or_Checked then
-                     Local := Local or Ada.Strings.Fixed.Index (To_Lower (Text), To_Lower (SI) ) > 0;
+                     Local := Local or Ada.Strings.Fixed.Index (To_Lower (Text), To_String (Lowered (I) ) ) > 0;
                   else
-                     Local := Local and Ada.Strings.Fixed.Index (To_Lower (Text), To_Lower (SI) ) > 0;
+                     Local := Local and Ada.Strings.Fixed.Index (To_Lower (Text), To_String (Lowered (I) ) ) > 0;
                   end if;
                end if;
             end Field_Value;
@@ -291,6 +298,10 @@ package body DB_Maker is
          Continue := not Local;
       end Check_One;
    begin -- Search_From
+      Fill_Lowered : for I in Lowered'Range loop
+         Lowered (I) := To_Unbounded_String (To_Lower (Value (Search_Item, I) ) );
+      end loop Fill_Lowered;
+
       Check_All (List => List);
 
       if not Found then
@@ -332,8 +343,6 @@ package body DB_Maker is
    when E : others =>
       Gnoga.Log (Message => "Reset: " & Ada.Exceptions.Exception_Information (E) );
    end Reset;
-
-   use Ada.Strings.Unbounded;
 
    procedure Add_One (Item : in Element; Continue : out Boolean) is
       Image : Unbounded_String;
