@@ -269,8 +269,6 @@ package body DB_Maker is
 
       procedure Check_One (Item : in Element; Continue : out Boolean) is
          Local : Boolean := not Or_Checked;
-
-         use Ada.Characters.Handling;
       begin -- Check_One
          Index := Index + 1;
 
