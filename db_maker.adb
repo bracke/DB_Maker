@@ -315,7 +315,6 @@ package body DB_Maker is
       end if;
 
       Sel.Selected (Index => Index);
-      Transfer_Selected;
       Search_Index := Index;
    end Search_From;
 
