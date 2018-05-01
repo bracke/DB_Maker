@@ -15,7 +15,10 @@ with Gnoga.Gui.Element.Form;
 with Gnoga.Gui.View.Grid;
 with Gnoga.Gui.Window;
 
+with Gnoga_Extra;
+
 with PragmARC.Persistent_Skip_List_Unbounded;
+with PragmARC.Unbounded_Conversions;
 
 package body DB_Maker is
    Full_Name : constant String := File_Name & ".psl";
@@ -26,31 +29,23 @@ package body DB_Maker is
    View    : Gnoga.Gui.View.View_Type;
    Form    : Gnoga.Gui.Element.Form.Form_Type;
    Sel     : Gnoga.Gui.Element.Form.Selection_Type;
-   Count   : Gnoga.Gui.Element.Form.Number_Type;
-   Cnt_Lbl : Gnoga.Gui.Element.Form.Label_Type;
+   Count   : Gnoga_Extra.Text_Info;
    Rand    : Gnoga.Gui.Element.Common.Button_Type;
    Quit    : Gnoga.Gui.Element.Common.Button_Type;
    Grid    : Gnoga.Gui.View.Grid.Grid_View_Type;
    L_Form  : Gnoga.Gui.Element.Form.Form_Type;
    R_View  : Gnoga.Gui.View.View_Type;
 
-   type Field_Display_Info is record
-      Text  : Gnoga.Gui.Element.Form.Text_Type;
-      Label : Gnoga.Gui.Element.Form.Label_Type;
-   end record;
-
-   type Field_Display_List is array (Field_Number) of Field_Display_Info;
+   type Field_Display_List is array (Field_Number) of Gnoga_Extra.Text_Info;
 
    Field   : Field_Display_List;
+   Fld_Lbl : Gnoga_Extra.Text_List (1 .. Field'Length);
    Add     : Gnoga.Gui.Element.Common.Button_Type;
    Modif   : Gnoga.Gui.Element.Common.Button_Type;
    Delete  : Gnoga.Gui.Element.Common.Button_Type;
    S_Form  : Gnoga.Gui.Element.Form.Form_Type;
    Search  : Gnoga.Gui.Element.Common.Button_Type;
-   Or_Rad  : Gnoga.Gui.Element.Form.Radio_Button_Type;
-   Or_Lbl  : Gnoga.Gui.Element.Form.Label_Type;
-   And_Rad : Gnoga.Gui.Element.Form.Radio_Button_Type;
-   And_Lbl : Gnoga.Gui.Element.Form.Label_Type;
+   Or_And  : Gnoga_Extra.Radio_Lists.Vector;
    Srch_Mr : Gnoga.Gui.Element.Common.Button_Type;
    Clear   : Gnoga.Gui.Element.Common.Button_Type;
    List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name);
@@ -122,7 +117,7 @@ package body DB_Maker is
       Item : constant Element := Get_By_Index (Sel.Selected_Index);
    begin -- Transfer_Selected
       All_Fields : for I in Field'Range loop
-         Field (I).Text.Value (Value => Value (Item, I) );
+         Field (I).Box.Value (Value => Value (Item, I) );
       end loop All_Fields;
    end Transfer_Selected;
 
@@ -174,7 +169,7 @@ package body DB_Maker is
       Item : Element;
    begin -- Get_From_Fields
       All_Fields : for I in Field'Range loop
-         Put (Item => Item, Field => I, Value => Field (I).Text.Value);
+         Put (Item => Item, Field => I, Value => Field (I).Box.Value);
       end loop All_Fields;
 
       return Item;
@@ -187,7 +182,7 @@ package body DB_Maker is
       end loop Remove;
 
       Add_All (List => List);
-      Count.Value (Value => Sel.Length);
+      Count.Box.Value (Value => Sel.Length);
    end Refresh;
 
    procedure Add_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
@@ -203,7 +198,7 @@ package body DB_Maker is
 
       List.Insert (Item => Item);
       Refresh;
-      And_Rad.Checked;
+      Or_And (2).Button.Checked;
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Add_Item
    when E : others =>
@@ -227,7 +222,7 @@ package body DB_Maker is
 
       List.Insert (Item => Item);
       Refresh;
-      And_Rad.Checked;
+      Or_And (2).Button.Checked;
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Modify
    when E : others =>
@@ -257,6 +252,8 @@ package body DB_Maker is
 
    use Ada.Characters.Handling;
 
+   use PragmARC.Unbounded_Conversions;
+
    procedure Search_From (Search_Item : in Element; Prev_Index : in Natural) is
       procedure Check_One (Item : in Element; Continue : out Boolean);
       -- Increments Index. If Index > Prev_Index and Item matches Search_Item, sets Found to True and Continue to False
@@ -269,7 +266,7 @@ package body DB_Maker is
       Found   : Boolean := False;
       Index   : Natural := 0;
 
-      Or_Checked : constant Boolean := Or_Rad.Checked;
+      Or_Checked : constant Boolean := Or_And (1).Button.Checked;
 
       procedure Check_One (Item : in Element; Continue : out Boolean) is
          Local : Boolean := not Or_Checked;
@@ -290,9 +287,9 @@ package body DB_Maker is
             begin -- Field_Value
                if Length (Lowered (I) ) > 0 then
                   if Or_Checked then
-                     Local := Local or Ada.Strings.Fixed.Index (To_Lower (Text), To_String (Lowered (I) ) ) > 0;
+                     Local := Local or Ada.Strings.Fixed.Index (To_Lower (Text), +Lowered (I) ) > 0;
                   else
-                     Local := Local and Ada.Strings.Fixed.Index (To_Lower (Text), To_String (Lowered (I) ) ) > 0;
+                     Local := Local and Ada.Strings.Fixed.Index (To_Lower (Text), +Lowered (I) ) > 0;
                   end if;
                end if;
             end Field_Value;
@@ -303,7 +300,7 @@ package body DB_Maker is
       end Check_One;
    begin -- Search_From
       Fill_Lowered : for I in Lowered'Range loop
-         Lowered (I) := To_Unbounded_String (To_Lower (Value (Search_Item, I) ) );
+         Lowered (I) := +To_Lower (Value (Search_Item, I) );
       end loop Fill_Lowered;
 
       Check_All (List => List);
@@ -341,7 +338,7 @@ package body DB_Maker is
       -- Empty
    begin -- Reset
       All_Fields : for I in Field'Range loop
-         Field (I).Text.Value (Value => "");
+         Field (I).Box.Value (Value => "");
       end loop All_Fields;
    exception -- Reset
    when E : others =>
@@ -380,6 +377,7 @@ begin -- DB_Maker
       end if;
 
       Append (Source => Header, New_Item => Field_Name (I) );
+      Fld_Lbl (Positive (I - Field_Number'First + 1) ) := +Field_Name (I);
    end loop Build_Header;
 
    Form.Put_Line (Message => To_String (Header) );
@@ -388,10 +386,9 @@ begin -- DB_Maker
    Sel.On_Key_Press_Handler (Handler => Key_Selection'Unrestricted_Access);
    Form.New_Line;
 
-   Count.Create (Form => Form);
-   Count.Editable (Value => False);
-   Count.Read_Only;
-   Cnt_Lbl.Create (Form => Form, Label_For => Count, Content => "Number of items:");
+   Gnoga_Extra.Create (Box => Count, Form => Form, Label => "Number of items:");
+   Count.Box.Editable (Value => False);
+   Count.Box.Read_Only;
    Rand.Create (Parent => Form, Content => "Random");
    Rand.On_Click_Handler (Handler => Random'Unrestricted_Access);
    Quit.Create (Parent => Form, Content => "Quit");
@@ -402,8 +399,8 @@ begin -- DB_Maker
    L_Form.Text_Alignment (Value => Gnoga.Gui.Element.Right);
 
    Create_Fields : for I in Field'Range loop
-      Field (I).Text.Create (Form => L_Form, Size => 50);
-      Field (I).Label.Create (Form => L_Form, Label_For => Field (I).Text, Content => Field_Name (I) );
+      Gnoga_Extra.Create
+         (Box => Field (I), Form => L_Form, Label => +Fld_Lbl (Positive (I - Field_Number'First + 1) ), Width => 50);
 
       if I < Field'Last then
          L_Form.New_Line;
@@ -423,10 +420,8 @@ begin -- DB_Maker
    S_Form.Create (Parent => R_View);
    Search.Create (Parent => S_Form, Content => "Search");
    Search.On_Click_Handler (Handler => Search_Item'Unrestricted_Access);
-   Or_Rad.Create (Form => S_Form, Checked => True, Name => "search");
-   Or_Lbl.Create (Form => S_Form, Label_For => Or_Rad, Content => "or", Auto_Place => False);
-   And_Rad.Create (Form => S_Form, Name => "search");
-   And_Lbl.Create (Form => S_Form, Label_For => And_Rad, Content => "and", Auto_Place => False);
+   Gnoga_Extra.Create
+      (Radio => Or_And, Form => S_Form, Label => (+"or", +"and"), Name => "search", Orientation => Gnoga_Extra.Horizontal);
    S_Form.New_Line;
    Srch_Mr.Create (Parent => S_Form, Content => "Search Again");
    Srch_Mr.On_Click_Handler (Handler => Search_More'Unrestricted_Access);
@@ -435,7 +430,7 @@ begin -- DB_Maker
    Clear.On_Click_Handler (Handler => Reset'Unrestricted_Access);
 
    Add_All (List => List);
-   Count.Value (Value => Sel.Length);
+   Count.Box.Value (Value => Sel.Length);
    Gnoga.Application.Singleton.Message_Loop;
 exception -- DB_Maker
 when E : others =>
