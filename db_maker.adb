@@ -45,7 +45,7 @@ package body DB_Maker is
    Delete  : Gnoga.Gui.Element.Common.Button_Type;
    S_Form  : Gnoga.Gui.Element.Form.Form_Type;
    Search  : Gnoga.Gui.Element.Common.Button_Type;
-   Or_And  : Gnoga_Extra.Radio_Lists.Vector;
+   Or_And  : Gnoga_Extra.Radio_List (1 .. 2);
    Srch_Mr : Gnoga.Gui.Element.Common.Button_Type;
    Clear   : Gnoga.Gui.Element.Common.Button_Type;
    List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name);
