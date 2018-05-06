@@ -38,14 +38,16 @@ package body DB_Maker is
 
    type Field_Display_List is array (Field_Number) of Gnoga_Extra.Text_Info;
 
+   type Text_List is array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
+
    Field   : Field_Display_List;
-   Fld_Lbl : Gnoga_Extra.Text_List (1 .. Field'Length);
+   Fld_Lbl : Text_List (1 .. Field'Length);
    Add     : Gnoga.Gui.Element.Common.Button_Type;
    Modif   : Gnoga.Gui.Element.Common.Button_Type;
    Delete  : Gnoga.Gui.Element.Common.Button_Type;
    S_Form  : Gnoga.Gui.Element.Form.Form_Type;
    Search  : Gnoga.Gui.Element.Common.Button_Type;
-   Or_And  : Gnoga_Extra.Radio_List (1 .. 2);
+   Or_And  : Gnoga_Extra.Radio_Info (Length => 2);
    Srch_Mr : Gnoga.Gui.Element.Common.Button_Type;
    Clear   : Gnoga.Gui.Element.Common.Button_Type;
    List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name);
@@ -198,7 +200,7 @@ package body DB_Maker is
 
       List.Insert (Item => Item);
       Refresh;
-      Or_And (2).Button.Checked;
+      Or_And.List (2).Button.Checked;
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Add_Item
    when E : others =>
@@ -222,7 +224,7 @@ package body DB_Maker is
 
       List.Insert (Item => Item);
       Refresh;
-      Or_And (2).Button.Checked;
+      Or_And.List (2).Button.Checked;
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Modify
    when E : others =>
@@ -266,7 +268,7 @@ package body DB_Maker is
       Found   : Boolean := False;
       Index   : Natural := 0;
 
-      Or_Checked : constant Boolean := Or_And (1).Button.Checked;
+      Or_Checked : constant Boolean := Or_And.List (1).Button.Checked;
 
       procedure Check_One (Item : in Element; Continue : out Boolean) is
          Local : Boolean := not Or_Checked;
@@ -420,8 +422,9 @@ begin -- DB_Maker
    S_Form.Create (Parent => R_View);
    Search.Create (Parent => S_Form, Content => "Search");
    Search.On_Click_Handler (Handler => Search_Item'Unrestricted_Access);
-   Gnoga_Extra.Create
-      (Radio => Or_And, Form => S_Form, Label => (+"or", +"and"), Name => "search", Orientation => Gnoga_Extra.Horizontal);
+   Or_And.List (1).Text := +"or";
+   Or_And.List (2).Text := +"and";
+   Or_And.Create (Form => S_Form, Name => "search", Orientation => Gnoga_Extra.Horizontal);
    S_Form.New_Line;
    Srch_Mr.Create (Parent => S_Form, Content => "Search Again");
    Srch_Mr.On_Click_Handler (Handler => Search_More'Unrestricted_Access);
