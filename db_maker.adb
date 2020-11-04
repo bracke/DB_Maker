@@ -12,6 +12,7 @@ with Gnoga.Application.Singleton;
 with Gnoga.Gui.Base;
 with Gnoga.Gui.Element.Common;
 with Gnoga.Gui.Element.Form;
+with Gnoga.Gui.View.Console;
 with Gnoga.Gui.View.Grid;
 with Gnoga.Gui.Window;
 
@@ -26,7 +27,7 @@ package body DB_Maker is
    package Lists is new PragmARC.Persistent_Skip_List_Unbounded (Element => Element);
 
    Window  : Gnoga.Gui.Window.Window_Type;
-   View    : Gnoga.Gui.View.View_Type;
+   View    : Gnoga.Gui.View.Console.Console_View_Type;
    Form    : Gnoga.Gui.Element.Form.Form_Type;
    Sel     : Gnoga.Gui.Element.Form.Selection_Type;
    Count   : Gnoga_Extra.Text_Info;
@@ -37,6 +38,8 @@ package body DB_Maker is
    R_View  : Gnoga.Gui.View.View_Type;
 
    type Field_Display_List is array (Field_Number) of Gnoga_Extra.Text_Info;
+
+   type Max_Length_List is array (Field_Number) of Natural;
 
    type Text_List is array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
 
@@ -51,6 +54,7 @@ package body DB_Maker is
    Srch_Mr : Gnoga.Gui.Element.Common.Button_Type;
    Clear   : Gnoga.Gui.Element.Common.Button_Type;
    List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name);
+   Max_Len : Max_Length_List := (others => 0);
 
    procedure Quit_Now (Object : in out Gnoga.Gui.Base.Base_Type'Class);
 
@@ -88,6 +92,11 @@ package body DB_Maker is
    -- Add Item to Sel
 
    procedure Add_All is new Lists.Iterate (Action => Add_One);
+
+   procedure Update_Max (Item : in Element; Continue : out Boolean);
+   -- Updates the values in Max_Len
+
+   procedure Find_Max is new Lists.Iterate (Action => Update_Max);
 
    function Get_By_Index (Index : in Positive) return Element is
       procedure Check_One (Item : in Element; Continue : out Boolean);
@@ -355,15 +364,37 @@ package body DB_Maker is
             Append (Source => Image, New_Item => " | ");
          end if;
 
-         Append (Source   => Image, New_Item => Value (Item, I) );
+         One_Field : declare
+            Field : constant String := Value (Item, I);
+         begin -- One_Field
+            Append (Source   => Image, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Character'Val (160) ) );
+         end One_Field;
       end loop All_Fields;
 
       Continue := True;
       Sel.Add_Option (Value => To_String (Image), Text => To_String (Image) );
    end Add_One;
 
+   procedure Update_Max (Item : in Element; Continue : out Boolean) is
+      -- Empty
+   begin -- Update_Max
+      All_Fields : for I in Field'Range loop
+         One_Field : declare
+            Field : constant String := Value (Item, I);
+         begin -- One_Field
+            if Field'Length > Max_Len (I) then
+               Max_Len (I) := Field'Length;
+            end if;
+         end One_Field;
+      end loop All_Fields;
+
+      Continue := True;
+   end Update_Max;
+
    Header : Unbounded_String;
 begin -- DB_Maker
+   Find_Max (List => List);
+
    Gnoga.Application.Title (File_Name);
    Gnoga.Application.HTML_On_Close (File_Name & " ended.");
    Gnoga.Application.Open_URL;
@@ -386,6 +417,7 @@ begin -- DB_Maker
    Sel.Create (Form => Form, Visible_Lines => 20);
    Sel.On_Click_Handler (Handler => Click_Selection'Unrestricted_Access);
    Sel.On_Key_Press_Handler (Handler => Key_Selection'Unrestricted_Access);
+   Sel.Font (Family => "monospace");
    Form.New_Line;
 
    Gnoga_Extra.Create (Box => Count, Form => Form, Label => "Number of items:");
