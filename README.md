@@ -5,6 +5,6 @@ Searching does not use the O(log N) search of the underlying skip list, but inst
 
 Because searching is case insensitive and matches substrings, searching for "son" would match "Orson Welles", "Fowler De Johnsone", and "Son House".
 
-Only about 7 fields will fit vertically in the typical browser window. This could perhaps be increased by making the font smaller.
+Only about 7 fields will fit vertically in the typical browser window. This could perhaps be increased by making the font smaller. A vertical scroll bar will appear if needed.
 
 Movies is a small demo program that could be used to catalogue a collection of films.
