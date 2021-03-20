@@ -1,12 +1,12 @@
 -- Demo for DB_Maker: Catalog your extensive collection of BetaMax videotape cassettes!
 --
--- Copyright (C) 2017 by Jeffrey R. Carter
+-- Copyright (C) 2020 by Jeffrey R. Carter
 --
 with DB_Maker;
-with PragmARC.B_Strings;
+with DB_Strings;
 
 procedure Movies is
-   subtype Strng is PragmARC.B_Strings.B_String (Max_Length => 100);
+   subtype Strng is DB_Strings.Strng;
    use type Strng;
 
    type Movie_Info is record
@@ -17,6 +17,9 @@ procedure Movies is
       Male_Lead   : Strng;
       Female_Lead : Strng;
    end record;
+
+   function "=" (Left : Movie_Info; Right : Movie_Info) return Boolean is
+      (Left.Title = Right.Title and Left.Year = Right.Year and Left.Director = Right.Director);
 
    function "<" (Left : Movie_Info; Right : Movie_Info) return Boolean is
       -- Empty
@@ -31,9 +34,6 @@ procedure Movies is
 
       return Left.Director < Right.Director;
    end "<";
-
-   function "=" (Left : Movie_Info; Right : Movie_Info) return Boolean is
-      (Left.Title = Right.Title and Left.Year = Right.Year and Left.Director = Right.Director);
 
    subtype Field_Number is Integer range 1 .. 6;
 
@@ -80,17 +80,17 @@ procedure Movies is
    begin -- Put
       case Field is
       when 1 =>
-         Item.Title.Assign (From => Value);
+         Item.Title := +Value;
       when 2 =>
-         Item.Year.Assign (From => Value);
+         Item.Year := +Value;
       when 3 =>
-         Item.Director.Assign (From => Value);
+         Item.Director := +Value;
       when 4 =>
-         Item.Writer.Assign (From => Value);
+         Item.Writer := +Value;
       when 5 =>
-         Item.Male_Lead.Assign (From => Value);
+         Item.Male_Lead := +Value;
       when 6 =>
-         Item.Female_Lead.Assign (From => Value);
+         Item.Female_Lead := +Value;
       end case;
    end Put;
 
