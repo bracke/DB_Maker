@@ -7,4 +7,4 @@ Because searching is case insensitive and matches substrings, searching for "son
 
 Only about 7 fields will fit vertically in the typical browser window. This could perhaps be increased by making the font smaller. A vertical scroll bar will appear if needed.
 
-Movies is a small demo program that could be used to catalogue a collection of films.
+Movies is a small demo program that could be used to catalogue a collection of films. DB_Strings is a non-limited replacement for PragmARC.B_Strings, since type B_String is limited in the Ada-12 version of the PragmARCs.
