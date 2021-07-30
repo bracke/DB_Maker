@@ -1,121 +1,108 @@
--- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and a Gnoga UI.
+-- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and an Ada-GUI UI
 --
--- Copyright (C) 2017 by Jeffrey R. Carter
+-- Copyright (C) 2021 by Jeffrey R. Carter
 --
 with Ada.Characters.Handling;
 with Ada.Exceptions;
 with Ada.Numerics.Discrete_Random;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Ada.Text_IO;
 
-with Gnoga.Application.Singleton;
-with Gnoga.Gui.Base;
-with Gnoga.Gui.Element.Common;
-with Gnoga.Gui.Element.Form;
-with Gnoga.Gui.View.Console;
-with Gnoga.Gui.View.Grid;
-with Gnoga.Gui.Window;
-
-with Gnoga_Extra;
+with Ada_GUI;
 
 with PragmARC.Persistent_Skip_List_Unbounded;
-with PragmARC.Unbounded_Conversions;
+with PragmARC.Conversions.Unbounded_Strings;
 
 package body DB_Maker is
    Full_Name : constant String := File_Name & ".psl";
 
    package Lists is new PragmARC.Persistent_Skip_List_Unbounded (Element => Element);
 
-   Window  : Gnoga.Gui.Window.Window_Type;
-   View    : Gnoga.Gui.View.Console.Console_View_Type;
-   Form    : Gnoga.Gui.Element.Form.Form_Type;
-   Sel     : Gnoga.Gui.Element.Form.Selection_Type;
-   Count   : Gnoga_Extra.Text_Info;
-   Rand    : Gnoga.Gui.Element.Common.Button_Type;
-   Quit    : Gnoga.Gui.Element.Common.Button_Type;
-   Grid    : Gnoga.Gui.View.Grid.Grid_View_Type;
-   L_Form  : Gnoga.Gui.Element.Form.Form_Type;
-   R_View  : Gnoga.Gui.View.View_Type;
+   Head  : Ada_GUI.Widget_ID;
+   Sel   : Ada_GUI.Widget_ID;
+   Count : Ada_GUI.Widget_ID;
+   Rand  : Ada_GUI.Widget_ID;
+   Quit  : Ada_GUI.Widget_ID;
 
-   type Field_Display_List is array (Field_Number) of Gnoga_Extra.Text_Info;
+   type Field_Display_List is array (Field_Number) of Ada_GUI.Widget_ID;
 
    type Max_Length_List is array (Field_Number) of Natural;
 
    type Text_List is array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
 
+--     Spacer  : Ada_GUI.Widget_ID;
    Field   : Field_Display_List;
    Fld_Lbl : Text_List (1 .. Field'Length);
-   Add     : Gnoga.Gui.Element.Common.Button_Type;
-   Modif   : Gnoga.Gui.Element.Common.Button_Type;
-   Delete  : Gnoga.Gui.Element.Common.Button_Type;
-   S_Form  : Gnoga.Gui.Element.Form.Form_Type;
-   Search  : Gnoga.Gui.Element.Common.Button_Type;
-   Or_And  : Gnoga_Extra.Radio_Info (Length => 2);
-   Srch_Mr : Gnoga.Gui.Element.Common.Button_Type;
-   Clear   : Gnoga.Gui.Element.Common.Button_Type;
+   Add     : Ada_GUI.Widget_ID;
+   Modif   : Ada_GUI.Widget_ID;
+   Delete  : Ada_GUI.Widget_ID;
+   Search  : Ada_GUI.Widget_ID;
+   Or_And  : Ada_GUI.Widget_ID;
+   Srch_Mr : Ada_GUI.Widget_ID;
+   Clear   : Ada_GUI.Widget_ID;
    List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name);
    Max_Len : Max_Length_List := (others => 0);
-
-   procedure Quit_Now (Object : in out Gnoga.Gui.Base.Base_Type'Class);
 
    function Get_By_Index (Index : in Positive) return Element;
 
    procedure Transfer_Selected;
 
-   procedure Random (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Random;
 
-   procedure Click_Selection (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Click_Selection;
 
-   procedure Key_Selection
-      (Object : in out Gnoga.Gui.Base.Base_Type'Class; Keyboard_Event : in Gnoga.Gui.Base.Keyboard_Event_Record);
+   procedure Key_Selection (Keyboard_Event : in Ada_GUI.Keyboard_Event_Info);
 
    function Get_From_Fields return Element;
 
    procedure Refresh;
 
-   procedure Add_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Add_Item;
 
-   procedure Modify (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Modify;
 
-   procedure Delete_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Delete_Item;
 
    procedure Search_From (Search_Item : in Element; Prev_Index : in Natural);
-   -- Performs a search starting with at Prev_Index + 1
+   -- Performs a search starting at Prev_Index + 1
 
-   procedure Search_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Search_Item;
 
-   procedure Search_More (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Search_More;
 
-   procedure Reset (Object : in out Gnoga.Gui.Base.Base_Type'Class);
+   procedure Reset;
 
-   procedure Add_One (Item : in Element; Continue : out Boolean);
+   procedure Add_One (Item : in Element);
    -- Add Item to Sel
 
    procedure Add_All is new Lists.Iterate (Action => Add_One);
 
-   procedure Update_Max (Item : in Element; Continue : out Boolean);
+   procedure Update_Max (Item : in Element);
    -- Updates the values in Max_Len
 
    procedure Find_Max is new Lists.Iterate (Action => Update_Max);
 
    function Get_By_Index (Index : in Positive) return Element is
-      procedure Check_One (Item : in Element; Continue : out Boolean);
-      -- Increments Item_Num. If Item_Num = Index, sets Result to Item and Continue to False
+      procedure Check_One (Item : in Element);
+      -- Increments Item_Num. If Item_Num = Index, sets Result to Item and Found to True
 
       procedure Check_All is new Lists.Iterate (Action => Check_One);
 
       Item_Num : Natural := 0;
       Result   : Element;
+      Found    : Boolean := False;
 
-      procedure Check_One (Item : in Element; Continue : out Boolean) is
+      procedure Check_One (Item : in Element) is
          -- Empty
       begin -- Check_One
-         Continue := True;
-         Item_Num := Item_Num + 1;
+         if not Found then
+            Item_Num := Item_Num + 1;
 
-         if Item_Num = Index then
-            Result := Item;
-            Continue := False;
+            if Item_Num = Index then
+               Result := Item;
+               Found  := True;
+            end if;
          end if;
       end Check_One;
    begin -- Get_By_Index
@@ -125,23 +112,14 @@ package body DB_Maker is
    end Get_By_Index;
 
    procedure Transfer_Selected is
-      Item : constant Element := Get_By_Index (Sel.Selected_Index);
+      Item : constant Element := Get_By_Index (Sel.Selected);
    begin -- Transfer_Selected
       All_Fields : for I in Field'Range loop
-         Field (I).Box.Value (Value => Value (Item, I) );
+         Field (I).Set_Text (Text => Value (Item, I) );
       end loop All_Fields;
    end Transfer_Selected;
 
-   procedure Quit_Now (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
-      -- Empty;
-   begin -- Quit_Now
-      Gnoga.Application.Singleton.End_Application;
-   exception -- Quit_Now
-   when E : others =>
-      Gnoga.Log (Message => "Quit_Now: " & Ada.Exceptions.Exception_Information (E) );
-   end Quit_Now;
-
-   procedure Random (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Random is
       subtype Item_Number is Integer range 1 .. Sel.Length;
 
       package Random_Item is new Ada.Numerics.Discrete_Random (Result_Subtype => Item_Number);
@@ -149,112 +127,108 @@ package body DB_Maker is
       Gen : Random_Item.Generator;
    begin -- Random
       Random_Item.Reset (Gen => Gen);
-      Sel.Selected (Index => Random_Item.Random (Gen) );
+      Sel.Set_Selected (Index => Random_Item.Random (Gen) );
       Transfer_Selected;
    exception -- Random
    when E : others =>
-      Gnoga.Log (Message => "Random: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Random: " & Ada.Exceptions.Exception_Information (E) );
    end Random;
 
-   procedure Click_Selection (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Click_Selection is
       -- Empty
    begin -- Click_Selection
       Transfer_Selected;
    exception -- Click_Selection
    when E : others =>
-      Gnoga.Log (Message => "Click_Selection: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Click_Selection: " & Ada.Exceptions.Exception_Information (E) );
    end Click_Selection;
 
-   procedure Key_Selection
-      (Object : in out Gnoga.Gui.Base.Base_Type'Class; Keyboard_Event : in Gnoga.Gui.Base.Keyboard_Event_Record)
-   is
+   procedure Key_Selection (Keyboard_Event : in Ada_GUI.Keyboard_Event_Info) is
       -- Empty
    begin -- Key_Selection
       Transfer_Selected;
    exception -- Key_Selection
    when E : others =>
-      Gnoga.Log (Message => "Key_Selection: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Key_Selection: " & Ada.Exceptions.Exception_Information (E) );
    end Key_Selection;
 
    function Get_From_Fields return Element is
       Item : Element;
    begin -- Get_From_Fields
       All_Fields : for I in Field'Range loop
-         Put (Item => Item, Field => I, Value => Field (I).Box.Value);
+         Put (Item => Item, Field => I, Value => Field (I).Text);
       end loop All_Fields;
 
       return Item;
    end Get_From_Fields;
 
    procedure Refresh is
+      -- Empty
    begin -- Refresh
-      Remove : for I in reverse 1 .. Sel.Length loop
-         Sel.Remove_Option (Index => I);
-      end loop Remove;
-
+      Sel.Clear;
       Add_All (List => List);
-      Count.Box.Value (Value => Sel.Length);
+      Count.Set_Text (Text => Integer'Image (Sel.Length) );
    end Refresh;
 
-   procedure Add_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Add_Item is
       Item : constant Element := Get_From_Fields;
 
       Current : constant Lists.Result := List.Search (Item);
    begin -- Add_Item
       if Current.Found then
-         Window.Alert (Message => "Item already exists. Use Modify to change.");
+         Ada_GUI.Show_Message_Box (Text => "Item already exists. Use Modify to change.");
 
          return;
       end if;
 
       List.Insert (Item => Item);
       Refresh;
-      Or_And.List (2).Button.Checked;
+      Or_And.Set_Active (Index => 2, Active => True);
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Add_Item
    when E : others =>
-      Gnoga.Log (Message => "Add_Item: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Add_Item: " & Ada.Exceptions.Exception_Information (E) );
    end Add_Item;
 
-   procedure Modify (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Modify is
       Item : constant Element := Get_From_Fields;
 
       Current : constant Lists.Result := List.Search (Item);
    begin -- Modify
       if not Current.Found then
-         if Sel.Selected_Index = 0 then
-            Window.Alert (Message => "Item doesn't exist. Use Add to insert.");
+         if Sel.Selected = 0 then
+            Ada_GUI.Show_Message_Box (Text => "Item doesn't exist. Use Add to insert.");
 
             return;
          end if;
 
-         List.Delete (Item => Get_By_Index (Sel.Selected_Index) );
+         List.Delete (Item => Get_By_Index (Sel.Selected) );
       end if;
 
       List.Insert (Item => Item);
       Refresh;
-      Or_And.List (2).Button.Checked;
+      Or_And.Set_Active (Index => 2, Active => True);
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Modify
    when E : others =>
-      Gnoga.Log (Message => "Modify: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Modify: " & Ada.Exceptions.Exception_Information (E) );
    end Modify;
 
-   procedure Delete_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Delete_Item is
       Item : Element;
    begin -- Delete_Item
-      if Sel.Selected_Index = 0 then
-         Window.Alert (Message => "Select an item to delete.");
+      if Sel.Selected = 0 then
+         Ada_GUI.Show_Message_Box (Text => "Select an item to delete.");
 
          return;
       end if;
 
-      Item := Get_By_Index (Sel.Selected_Index);
+      Item := Get_By_Index (Sel.Selected);
       List.Delete (Item => Item);
       Refresh;
    exception -- Delete_Item
    when E : others =>
-      Gnoga.Log (Message => "Delete_Item: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Delete_Item: " & Ada.Exceptions.Exception_Information (E) );
    end Delete_Item;
 
    Search_Index : Natural := 0;
@@ -263,11 +237,11 @@ package body DB_Maker is
 
    use Ada.Characters.Handling;
 
-   use PragmARC.Unbounded_Conversions;
+   use PragmARC.Conversions.Unbounded_Strings;
 
    procedure Search_From (Search_Item : in Element; Prev_Index : in Natural) is
-      procedure Check_One (Item : in Element; Continue : out Boolean);
-      -- Increments Index. If Index > Prev_Index and Item matches Search_Item, sets Found to True and Continue to False
+      procedure Check_One (Item : in Element);
+      -- Increments Index. If Index > Prev_Index and Item matches Search_Item, sets Found to True
 
       procedure Check_All is new Lists.Iterate (Action => Check_One);
 
@@ -277,37 +251,36 @@ package body DB_Maker is
       Found   : Boolean := False;
       Index   : Natural := 0;
 
-      Or_Checked : constant Boolean := Or_And.List (1).Button.Checked;
+      Or_Checked : constant Boolean := Or_And.Active (1);
 
-      procedure Check_One (Item : in Element; Continue : out Boolean) is
+      procedure Check_One (Item : in Element) is
          Local : Boolean := not Or_Checked;
 
          use Ada.Characters.Handling;
       begin -- Check_One
-         Index := Index + 1;
+         if not Found then
+            Index := Index + 1;
 
-         if Index <= Prev_Index then
-            Continue := True;
+            if Index <= Prev_Index then
+               return;
+            end if;
 
-            return;
-         end if;
-
-         All_Fields : for I in Field'Range loop
-            Field_Value : declare
-               Text : constant String := Value (Item, I);
-            begin -- Field_Value
-               if Length (Lowered (I) ) > 0 then
-                  if Or_Checked then
-                     Local := Local or Ada.Strings.Fixed.Index (To_Lower (Text), +Lowered (I) ) > 0;
-                  else
-                     Local := Local and Ada.Strings.Fixed.Index (To_Lower (Text), +Lowered (I) ) > 0;
+            All_Fields  : for I in Field'Range loop
+               Field_Value : declare
+                  Text : constant String := Value (Item, I);
+               begin -- Field_Value
+                  if Length (Lowered (I) ) > 0 then
+                     if Or_Checked then
+                        Local := Local or Ada.Strings.Fixed.Index (To_Lower (Text), +Lowered (I) ) > 0;
+                     else
+                        Local := Local and Ada.Strings.Fixed.Index (To_Lower (Text), +Lowered (I) ) > 0;
+                     end if;
                   end if;
-               end if;
-            end Field_Value;
-         end loop All_Fields;
+               end Field_Value;
+            end loop All_Fields;
 
-         Found := Local;
-         Continue := not Local;
+            Found := Local;
+         end if;
       end Check_One;
    begin -- Search_From
       Fill_Lowered : for I in Lowered'Range loop
@@ -317,46 +290,46 @@ package body DB_Maker is
       Check_All (List => List);
 
       if not Found then
-         Window.Alert (Message => "No matching item.");
+         Ada_GUI.Show_Message_Box (Text => "No matching item.");
 
          return;
       end if;
 
-      Sel.Selected (Index => Index);
+      Sel.Set_Selected (Index => Index);
       Search_Index := Index;
    end Search_From;
 
-   procedure Search_Item (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Search_Item is
       Item : constant Element := Get_From_Fields;
    begin -- Search_Item
       Search_Index := 0;
       Search_From (Search_Item => Item, Prev_Index => 0);
    exception -- Search_Item
    when E : others =>
-      Gnoga.Log (Message => "Search_Item: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Search_Item: " & Ada.Exceptions.Exception_Information (E) );
    end Search_Item;
 
-   procedure Search_More (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Search_More is
       Item : constant Element := Get_From_Fields;
    begin -- Search_More
       Search_From (Search_Item => Item, Prev_Index => Search_Index);
    exception -- Search_More
    when E : others =>
-      Gnoga.Log (Message => "Search_More: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Search_More: " & Ada.Exceptions.Exception_Information (E) );
    end Search_More;
 
-   procedure Reset (Object : in out Gnoga.Gui.Base.Base_Type'Class) is
+   procedure Reset is
       -- Empty
    begin -- Reset
       All_Fields : for I in Field'Range loop
-         Field (I).Box.Value (Value => "");
+         Field (I).Set_Text (Text => "");
       end loop All_Fields;
    exception -- Reset
    when E : others =>
-      Gnoga.Log (Message => "Reset: " & Ada.Exceptions.Exception_Information (E) );
+      Ada.Text_IO.Put_Line (Item => "Reset: " & Ada.Exceptions.Exception_Information (E) );
    end Reset;
 
-   procedure Add_One (Item : in Element; Continue : out Boolean) is
+   procedure Add_One (Item : in Element) is
       Image : Unbounded_String;
    begin -- Add_One
       All_Fields : for I in Field'Range loop
@@ -367,42 +340,36 @@ package body DB_Maker is
          One_Field : declare
             Field : constant String := Value (Item, I);
          begin -- One_Field
-            Append (Source   => Image, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Character'Val (160) ) );
+            Append (Source => Image, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Character'Val (160) ) );
          end One_Field;
       end loop All_Fields;
 
-      Continue := True;
-      Sel.Add_Option (Value => To_String (Image), Text => To_String (Image) );
+      Sel.Insert (Text => +Image);
    end Add_One;
 
-   procedure Update_Max (Item : in Element; Continue : out Boolean) is
+   procedure Update_Max (Item : in Element) is
       -- Empty
    begin -- Update_Max
       All_Fields : for I in Field'Range loop
          One_Field : declare
             Field : constant String := Value (Item, I);
          begin -- One_Field
-            if Field'Length > Max_Len (I) then
-               Max_Len (I) := Field'Length;
-            end if;
+            Max_Len (I) := Integer'Max (Max_Len (I), Field'Length);
          end One_Field;
       end loop All_Fields;
-
-      Continue := True;
    end Update_Max;
 
    Header : Unbounded_String;
+   Event  : Ada_GUI.Next_Result_Info;
+
+   use type Ada_GUI.Widget_ID;
 begin -- DB_Maker
    Find_Max (List => List);
 
-   Gnoga.Application.Title (File_Name);
-   Gnoga.Application.HTML_On_Close (File_Name & " ended.");
-   Gnoga.Application.Open_URL;
-   Gnoga.Application.Singleton.Initialize (Main_Window => Window);
-
-   View.Create (Parent => Window);
-   Form.Create (Parent => View);
-   Form.Text_Alignment (Value => Gnoga.Gui.Element.Center);
+   Ada_GUI.Set_Up (Grid => (1 => (1 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Center), 2 => (Kind => Ada_GUI.Extension) ),
+                            2 => (1 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Right),
+                                  2 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Left) ) ),
+                   Title => File_Name);
 
    Build_Header : for I in Field_Number loop
       if I > Field_Number'First then
@@ -413,63 +380,79 @@ begin -- DB_Maker
       Fld_Lbl (Positive (I - Field_Number'First + 1) ) := +Field_Name (I);
    end loop Build_Header;
 
-   Form.Put_Line (Message => To_String (Header) );
-   Sel.Create (Form => Form, Visible_Lines => 20);
-   Sel.On_Click_Handler (Handler => Click_Selection'Unrestricted_Access);
-   Sel.On_Key_Press_Handler (Handler => Key_Selection'Unrestricted_Access);
-   Sel.Font (Family => "monospace");
-   Form.New_Line;
+   Head := Ada_GUI.New_Background_Text (Text => +Header);
+   Head.Set_Text_Aligbnment (Alignment => Ada_GUI.Center);
+   Sel := Ada_GUI.New_Selection_List (Break_Before => True, Height => 20);
+   Sel.Set_Text_Font_Kind (Kind => Ada_GUI.Monospaced);
 
-   Gnoga_Extra.Create (Box => Count, Form => Form, Label => "Number of items:");
-   Count.Box.Editable (Value => False);
-   Count.Box.Read_Only;
-   Rand.Create (Parent => Form, Content => "Random");
-   Rand.On_Click_Handler (Handler => Random'Unrestricted_Access);
-   Quit.Create (Parent => Form, Content => "Quit");
-   Quit.On_Click_Handler (Handler => Quit_Now'Unrestricted_Access);
-
-   Grid.Create (Parent => View, Layout => Gnoga.Gui.View.Grid.Horizontal_Split, Fill_Parent => False, Set_Sizes => False);
-   L_Form.Create (Parent => Grid.Panel (1, 1).all);
-   L_Form.Text_Alignment (Value => Gnoga.Gui.Element.Right);
+   Count := Ada_GUI.New_Text_Box (Break_Before => True, Label => "Number of items:");
+   Rand := Ada_GUI.New_Button (Text => "Random");
+   Quit := Ada_GUI.New_Button (Text => "Quit");
+--     Spacer := Ada_GUI.New_Background_Text (Break_Before => True);
+--     Spacer.Set_Visibility (Visible => False);
 
    Create_Fields : for I in Field'Range loop
-      Gnoga_Extra.Create
-         (Box => Field (I), Form => L_Form, Label => +Fld_Lbl (Positive (I - Field_Number'First + 1) ), Width => 50);
-
-      if I < Field'Last then
-         L_Form.New_Line;
-      end if;
+      Field (I) := Ada_GUI.New_Text_Box (Row          => 2,
+                                         Break_Before => I > Field'First,
+                                         Label        =>  +Fld_Lbl (Positive (I - Field'First + 1) ),
+                                         Width        => 50);
    end loop Create_Fields;
 
-   R_View.Create (Parent => Grid.Panel (1, 2).all);
-   Add.Create (Parent => R_View, Content => "Add");
-   Add.On_Click_Handler (Handler => Add_Item'Unrestricted_Access);
-   R_View.New_Line;
-   Modif.Create (Parent => R_View, Content => "Modify");
-   Modif.On_Click_Handler (Handler => Modify'Unrestricted_Access);
-   R_View.New_Line;
-   Delete.Create (Parent => R_View, Content => "Delete");
-   Delete.On_Click_Handler (Handler => Delete_Item'Unrestricted_Access);
-   R_View.New_Line;
-   S_Form.Create (Parent => R_View);
-   Search.Create (Parent => S_Form, Content => "Search");
-   Search.On_Click_Handler (Handler => Search_Item'Unrestricted_Access);
-   Or_And.List (1).Text := +"or";
-   Or_And.List (2).Text := +"and";
-   Or_And.Create (Form => S_Form, Name => "search", Orientation => Gnoga_Extra.Horizontal);
-   S_Form.New_Line;
-   Srch_Mr.Create (Parent => S_Form, Content => "Search Again");
-   Srch_Mr.On_Click_Handler (Handler => Search_More'Unrestricted_Access);
-   S_Form.New_Line;
-   Clear.Create (Parent => S_Form, Content => "Clear");
-   Clear.On_Click_Handler (Handler => Reset'Unrestricted_Access);
+   Add    := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Add");
+   Modif  := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Modify", Break_Before => True);
+   Delete := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Delete", Break_Before => True);
+   Search := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Search", Break_Before => True);
+   Or_And :=
+      Ada_GUI.New_Radio_Buttons (Row => 2, Column => 2, Label => (1 => +"or", 2 => +"and"), Orientation => Ada_GUI.Horizontal);
+   Srch_Mr := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Search Again", Break_Before => True);
+   Clear   := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Clear", Break_Before => True);
 
    Add_All (List => List);
-   Count.Box.Value (Value => Sel.Length);
-   Gnoga.Application.Singleton.Message_Loop;
+   Count.Set_Text (Text => Integer'Image (Sel.Length) );
+
+   All_Events : loop
+      Handle_Invalid : begin
+         Event := Ada_GUI.Next_Event;
+
+         if not Event.Timed_Out then
+            if Event.Event.Kind in Ada_GUI.Left_Click | Ada_GUI.Right_Click | Ada_GUI.Double_Click then
+               if Event.Event.ID = Sel then
+                  Click_Selection;
+               elsif Event.Event.ID = Rand then
+                  Random;
+               elsif Event.Event.ID = Quit then
+                  Ada_GUI.End_GUI;
+
+                  exit All_Events;
+               elsif Event.Event.ID = Add then
+                  Add_Item;
+               elsif Event.Event.ID = Modif then
+                  Modify;
+               elsif Event.Event.ID = Delete then
+                  Delete_Item;
+               elsif Event.Event.ID = Search then
+                  Search_Item;
+               elsif Event.Event.ID = Srch_Mr then
+                  Search_More;
+               elsif Event.Event.ID = Clear then
+                  Reset;
+               else
+                  null;
+               end if;
+            elsif Event.Event.ID = Sel then -- Kind = Key_Press
+               Key_Selection (Keyboard_Event => Event.Event.Key);
+            else
+               null;
+            end if;
+         end if;
+      exception -- Handle_Invalid
+      when others =>
+         null;
+      end Handle_Invalid;
+   end loop All_Events;
 exception -- DB_Maker
 when E : others =>
-   Gnoga.Log (Message => Ada.Exceptions.Exception_Information (E) );
+   Ada.Text_IO.Put_Line (Item => Ada.Exceptions.Exception_Information (E) );
 end DB_Maker;
 --
 -- This is free software; you can redistribute it and/or modify it under

@@ -1,6 +1,6 @@
--- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and a Gnoga UI.
+-- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and an Ada-GUI UI
 --
--- Copyright (C) 2017 by Jeffrey R. Carter
+-- Copyright (C) 2021 by Jeffrey R. Carter
 --
 generic -- DB_Maker
    Max_Field_Length : Positive;
