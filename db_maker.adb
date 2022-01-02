@@ -1,6 +1,6 @@
 -- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and an Ada-GUI UI
 --
--- Copyright (C) 2021 by Jeffrey R. Carter
+-- Copyright (C) 2022 by Jeffrey R. Carter
 --
 with Ada.Characters.Handling;
 with Ada.Exceptions;
@@ -31,7 +31,6 @@ package body DB_Maker is
 
    type Text_List is array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
 
---     Spacer  : Ada_GUI.Widget_ID;
    Field   : Field_Display_List;
    Fld_Lbl : Text_List (1 .. Field'Length);
    Add     : Ada_GUI.Widget_ID;
@@ -41,7 +40,7 @@ package body DB_Maker is
    Or_And  : Ada_GUI.Widget_ID;
    Srch_Mr : Ada_GUI.Widget_ID;
    Clear   : Ada_GUI.Widget_ID;
-   List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name);
+   List    : Lists.Persistent_Skip_List := Lists.Open_List (Full_Name, True);
    Max_Len : Max_Length_List := (others => 0);
 
    function Get_By_Index (Index : in Positive) return Element;
@@ -388,8 +387,6 @@ begin -- DB_Maker
    Count := Ada_GUI.New_Text_Box (Break_Before => True, Label => "Number of items:");
    Rand := Ada_GUI.New_Button (Text => "Random");
    Quit := Ada_GUI.New_Button (Text => "Quit");
---     Spacer := Ada_GUI.New_Background_Text (Break_Before => True);
---     Spacer.Set_Visibility (Visible => False);
 
    Create_Fields : for I in Field'Range loop
       Field (I) := Ada_GUI.New_Text_Box (Row          => 2,
@@ -411,19 +408,19 @@ begin -- DB_Maker
    Count.Set_Text (Text => Integer'Image (Sel.Length) );
 
    All_Events : loop
+      exit All_Events when Ada_GUI.Window_Closed;
+
       Handle_Invalid : begin
-         Event := Ada_GUI.Next_Event;
+         Event := Ada_GUI.Next_Event (Timeout => 1.0);
 
          if not Event.Timed_Out then
             if Event.Event.Kind in Ada_GUI.Left_Click | Ada_GUI.Right_Click | Ada_GUI.Double_Click then
+               exit All_Events when Event.Event.ID = Quit;
+
                if Event.Event.ID = Sel then
                   Click_Selection;
                elsif Event.Event.ID = Rand then
                   Random;
-               elsif Event.Event.ID = Quit then
-                  Ada_GUI.End_GUI;
-
-                  exit All_Events;
                elsif Event.Event.ID = Add then
                   Add_Item;
                elsif Event.Event.ID = Modif then
@@ -450,6 +447,8 @@ begin -- DB_Maker
          null;
       end Handle_Invalid;
    end loop All_Events;
+
+   Ada_GUI.End_GUI;
 exception -- DB_Maker
 when E : others =>
    Ada.Text_IO.Put_Line (Item => Ada.Exceptions.Exception_Information (E) );
