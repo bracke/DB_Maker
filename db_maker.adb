@@ -361,6 +361,7 @@ package body DB_Maker is
    Header : Unbounded_String;
    Event  : Ada_GUI.Next_Result_Info;
 
+   use type Ada_GUI.Event_Kind_ID;
    use type Ada_GUI.Widget_ID;
 begin -- DB_Maker
    Find_Max (List => List);
@@ -408,12 +409,12 @@ begin -- DB_Maker
    Count.Set_Text (Text => Integer'Image (Sel.Length) );
 
    All_Events : loop
-      exit All_Events when Ada_GUI.Window_Closed;
-
       Handle_Invalid : begin
-         Event := Ada_GUI.Next_Event (Timeout => 1.0);
+         Event := Ada_GUI.Next_Event;
 
          if not Event.Timed_Out then
+            exit All_Events when Event.Event.Kind = Ada_GUI.Window_Closed;
+
             if Event.Event.Kind in Ada_GUI.Left_Click | Ada_GUI.Right_Click | Ada_GUI.Double_Click then
                exit All_Events when Event.Event.ID = Quit;
 
