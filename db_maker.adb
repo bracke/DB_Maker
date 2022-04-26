@@ -29,10 +29,7 @@ package body DB_Maker is
 
    type Max_Length_List is array (Field_Number) of Natural;
 
-   type Text_List is array (Positive range <>) of Ada.Strings.Unbounded.Unbounded_String;
-
    Field   : Field_Display_List;
-   Fld_Lbl : Text_List (1 .. Field'Length);
    Add     : Ada_GUI.Widget_ID;
    Modif   : Ada_GUI.Widget_ID;
    Delete  : Ada_GUI.Widget_ID;
@@ -75,12 +72,18 @@ package body DB_Maker is
    procedure Add_One (Item : in Element);
    -- Add Item to Sel
 
+   procedure Build_Header;
+   -- Builds the header line
+
    procedure Add_All is new Lists.Iterate (Action => Add_One);
 
    procedure Update_Max (Item : in Element);
    -- Updates the values in Max_Len
 
    procedure Find_Max is new Lists.Iterate (Action => Update_Max);
+
+   procedure Find_Max;
+   -- Finds the max length for each field, including the field names
 
    function Get_By_Index (Index : in Positive) return Element is
       procedure Check_One (Item : in Element);
@@ -164,6 +167,8 @@ package body DB_Maker is
    procedure Refresh is
       -- Empty
    begin -- Refresh
+      Find_Max;
+      Build_Header;
       Sel.Clear;
       Add_All (List => List);
       Count.Set_Text (Text => Integer'Image (Sel.Length) );
@@ -328,6 +333,26 @@ package body DB_Maker is
       Ada.Text_IO.Put_Line (Item => "Reset: " & Ada.Exceptions.Exception_Information (E) );
    end Reset;
 
+   Nbsp : constant Character := Character'Val (160);
+
+   procedure Build_Header is
+      Header : Unbounded_String;
+   begin -- Build_Header
+      All_Names : for I in Field_Number loop
+         if I > Field_Number'First then
+            Append (Source => Header, New_Item => " | ");
+         end if;
+
+         One_Name : declare
+            Name : constant String := Field_Name (I);
+         begin -- One_Name
+            Append (Source => Header, New_Item => Name & (1 .. Max_Len (I) - Name'Length => Nbsp) );
+         end One_Name;
+      end loop All_Names;
+
+      Head.Set_Text (Text => +Header);
+   end Build_Header;
+
    procedure Add_One (Item : in Element) is
       Image : Unbounded_String;
    begin -- Add_One
@@ -339,7 +364,7 @@ package body DB_Maker is
          One_Field : declare
             Field : constant String := Value (Item, I);
          begin -- One_Field
-            Append (Source => Image, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Character'Val (160) ) );
+            Append (Source => Image, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Nbsp) );
          end One_Field;
       end loop All_Fields;
 
@@ -358,30 +383,30 @@ package body DB_Maker is
       end loop All_Fields;
    end Update_Max;
 
-   Header : Unbounded_String;
-   Event  : Ada_GUI.Next_Result_Info;
+   procedure Find_Max is
+      -- Empty
+   begin -- Find_Max
+      Add_Names : for I in Field_Number loop
+         Max_Len (I) := Field_Name (I)'Length;
+      end loop Add_Names;
+
+      Find_Max (List => List);
+   end Find_Max;
+
+   Event : Ada_GUI.Next_Result_Info;
 
    use type Ada_GUI.Event_Kind_ID;
    use type Ada_GUI.Widget_ID;
 begin -- DB_Maker
-   Find_Max (List => List);
+   Find_Max;
 
    Ada_GUI.Set_Up (Grid => (1 => (1 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Center), 2 => (Kind => Ada_GUI.Extension) ),
                             2 => (1 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Right),
                                   2 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Left) ) ),
                    Title => File_Name);
 
-   Build_Header : for I in Field_Number loop
-      if I > Field_Number'First then
-         Append (Source => Header, New_Item => " | ");
-      end if;
-
-      Append (Source => Header, New_Item => Field_Name (I) );
-      Fld_Lbl (Positive (I - Field_Number'First + 1) ) := +Field_Name (I);
-   end loop Build_Header;
-
-   Head := Ada_GUI.New_Background_Text (Text => +Header);
-   Head.Set_Text_Aligbnment (Alignment => Ada_GUI.Center);
+   Head := Ada_GUI.New_Background_Text (Text => "");
+   Head.Set_Text_Font_Kind (Kind => Ada_GUI.Monospaced);
    Sel := Ada_GUI.New_Selection_List (Break_Before => True, Height => 20);
    Sel.Set_Text_Font_Kind (Kind => Ada_GUI.Monospaced);
 
@@ -392,7 +417,7 @@ begin -- DB_Maker
    Create_Fields : for I in Field'Range loop
       Field (I) := Ada_GUI.New_Text_Box (Row          => 2,
                                          Break_Before => I > Field'First,
-                                         Label        =>  +Fld_Lbl (Positive (I - Field'First + 1) ),
+                                         Label        => Field_Name (I),
                                          Width        => 50);
    end loop Create_Fields;
 
@@ -405,6 +430,7 @@ begin -- DB_Maker
    Srch_Mr := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Search Again", Break_Before => True);
    Clear   := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Clear", Break_Before => True);
 
+   Build_Header;
    Add_All (List => List);
    Count.Set_Text (Text => Integer'Image (Sel.Length) );
 
