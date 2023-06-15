@@ -1,6 +1,6 @@
 -- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and an Ada-GUI UI
 --
--- Copyright (C) 2022 by Jeffrey R. Carter
+-- Copyright (C) 2023 by Jeffrey R. Carter
 --
 with Ada.Characters.Handling;
 with Ada.Exceptions;
@@ -170,8 +170,29 @@ package body DB_Maker is
       Find_Max;
       Build_Header;
       Sel.Clear;
+
+      Sel.Set_Visibility (Visible => False);
+      Rand.Set_Visibility (Visible => False);
+      Quit.Set_Visibility (Visible => False);
+      Add.Set_Visibility (Visible => False);
+      Modif.Set_Visibility (Visible => False);
+      Delete.Set_Visibility (Visible => False);
+      Search.Set_Visibility (Visible => False);
+      Srch_Mr.Set_Visibility (Visible => False);
+      Clear.Set_Visibility (Visible => False);
+
       Add_All (List => List);
       Count.Set_Text (Text => Integer'Image (Sel.Length) );
+
+      Sel.Set_Visibility (Visible => True);
+      Rand.Set_Visibility (Visible => True);
+      Quit.Set_Visibility (Visible => True);
+      Add.Set_Visibility (Visible => True);
+      Modif.Set_Visibility (Visible => True);
+      Delete.Set_Visibility (Visible => True);
+      Search.Set_Visibility (Visible => True);
+      Srch_Mr.Set_Visibility (Visible => True);
+      Clear.Set_Visibility (Visible => True);
    end Refresh;
 
    procedure Add_Item is
@@ -398,8 +419,6 @@ package body DB_Maker is
    use type Ada_GUI.Event_Kind_ID;
    use type Ada_GUI.Widget_ID;
 begin -- DB_Maker
-   Find_Max;
-
    Ada_GUI.Set_Up (Grid => (1 => (1 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Center), 2 => (Kind => Ada_GUI.Extension) ),
                             2 => (1 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Right),
                                   2 => (Kind => Ada_GUI.Area, Alignment => Ada_GUI.Left) ) ),
@@ -430,9 +449,7 @@ begin -- DB_Maker
    Srch_Mr := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Search Again", Break_Before => True);
    Clear   := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Clear", Break_Before => True);
 
-   Build_Header;
-   Add_All (List => List);
-   Count.Set_Text (Text => Integer'Image (Sel.Length) );
+   Refresh;
 
    All_Events : loop
       Handle_Invalid : begin
