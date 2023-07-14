@@ -1,9 +1,10 @@
 -- Demo for DB_Maker: Catalog your extensive collection of BetaMax videotape cassettes!
 --
--- Copyright (C) 2021 by Jeffrey R. Carter
+-- Copyright (C) 2023 by Jeffrey R. Carter
 --
 with DB_Maker;
 with DB_Strings;
+with PragmARC.Title_Comparisons;
 
 procedure Movies is
    subtype Strng is DB_Strings.Strng;
@@ -25,7 +26,7 @@ procedure Movies is
       -- Empty
    begin -- "<"
       if Left.Title /= Right.Title then
-         return Left.Title < Right.Title;
+         return PragmARC.Title_Comparisons.Less (+Left.Title, +Right.Title);
       end if;
 
       if Left.Year /= Right.Year then
