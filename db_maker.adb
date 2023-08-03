@@ -195,10 +195,79 @@ package body DB_Maker is
       Clear.Set_Visibility (Visible => True);
    end Refresh;
 
+   function Max_Changed return Boolean;
+   -- Returns True if the values in Max_Len are different than Find_Max would set; False otherwise
+
+   function List_Index (Item : in Element) return Positive with
+      Pre => List.Search (Item).Found;
+
+   function Image (Item : in Element) return String;
+   -- Produces the text to add to Sel for Item
+
+   function Max_Changed return Boolean is
+      Old_Max : constant Max_Length_List := Max_Len;
+   begin -- Max_Changed
+      Find_Max;
+
+      return Old_Max /= Max_Len;
+   end Max_Changed;
+
+   function List_Index (Item : in Element) return Positive is
+      procedure Check_One (Value : in Element);
+      -- If Found, returns immediately
+      -- Otherwise, increments Result and sets Found to Item = Value
+
+      procedure Set_Result is new Lists.Iterate (Action => Check_One);
+
+      Found  : Boolean := False;
+      Result : Natural := 0;
+
+      procedure Check_One (Value : in Element) is
+         -- Empty
+      begin -- Check_One
+         if Found then
+            return;
+         end if;
+
+         Result := Result + 1;
+         Found := Item = Value;
+      end Check_One;
+   begin -- List_Index
+      Set_Result (List => List);
+
+      return Result;
+   end List_Index;
+
+   Nbsp : constant Character := Character'Val (160);
+
+   use Ada.Strings.Unbounded;
+
+   use PragmARC.Conversions.Unbounded_Strings;
+
+   function Image (Item : in Element) return String is
+      Result : Unbounded_String;
+   begin -- Image
+      All_Fields : for I in Field'Range loop
+         if I > Field'First then
+            Append (Source => Result, New_Item => " | ");
+         end if;
+
+         One_Field : declare
+            Field : constant String := Value (Item, I);
+         begin -- One_Field
+            Append (Source => Result, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Nbsp) );
+         end One_Field;
+      end loop All_Fields;
+
+      return +Result;
+   end Image;
+
    procedure Add_Item is
       Item : constant Element := Get_From_Fields;
 
       Current : constant Lists.Result := List.Search (Item);
+
+      Index : Positive;
    begin -- Add_Item
       if Current.Found then
          Ada_GUI.Show_Message_Box (Text => "Item already exists. Use Modify to change.");
@@ -207,9 +276,16 @@ package body DB_Maker is
       end if;
 
       List.Insert (Item => Item);
-      Refresh;
-      Or_And.Set_Active (Index => 2, Active => True);
-      Search_From (Search_Item => Item, Prev_Index => 0);
+
+      if Max_Changed then -- Need to redraw everything
+         Refresh;
+         Or_And.Set_Active (Index => 2, Active => True);
+         Search_From (Search_Item => Item, Prev_Index => 0);
+      else -- Can update Sel directly
+         Index := List_Index (Item);
+         Sel.Insert (Text => Image (Item), Before => Index);
+         Sel.Set_Selected (Index => Index);
+      end if;
    exception -- Add_Item
    when E : others =>
       Ada.Text_IO.Put_Line (Item => "Add_Item: " & Ada.Exceptions.Exception_Information (E) );
@@ -240,17 +316,25 @@ package body DB_Maker is
    end Modify;
 
    procedure Delete_Item is
+      Index : constant Natural := Sel.Selected;
+
       Item : Element;
    begin -- Delete_Item
-      if Sel.Selected = 0 then
+      if Index = 0 then
          Ada_GUI.Show_Message_Box (Text => "Select an item to delete.");
 
          return;
       end if;
 
-      Item := Get_By_Index (Sel.Selected);
+      Item := Get_By_Index (Index);
       List.Delete (Item => Item);
-      Refresh;
+
+      if Max_Changed then -- Need to redraw everything
+         Refresh;
+      else -- Can update Sel directly
+         Sel.Delete (Index => Index);
+         Sel.Set_Selected (Index => Integer'Min (Sel.Length, Index) );
+      end if;
    exception -- Delete_Item
    when E : others =>
       Ada.Text_IO.Put_Line (Item => "Delete_Item: " & Ada.Exceptions.Exception_Information (E) );
@@ -258,11 +342,7 @@ package body DB_Maker is
 
    Search_Index : Natural := 0;
 
-   use Ada.Strings.Unbounded;
-
    use Ada.Characters.Handling;
-
-   use PragmARC.Conversions.Unbounded_Strings;
 
    procedure Search_From (Search_Item : in Element; Prev_Index : in Natural) is
       procedure Check_One (Item : in Element);
@@ -354,8 +434,6 @@ package body DB_Maker is
       Ada.Text_IO.Put_Line (Item => "Reset: " & Ada.Exceptions.Exception_Information (E) );
    end Reset;
 
-   Nbsp : constant Character := Character'Val (160);
-
    procedure Build_Header is
       Header : Unbounded_String;
    begin -- Build_Header
@@ -375,21 +453,9 @@ package body DB_Maker is
    end Build_Header;
 
    procedure Add_One (Item : in Element) is
-      Image : Unbounded_String;
+      -- Empty
    begin -- Add_One
-      All_Fields : for I in Field'Range loop
-         if I > Field'First then
-            Append (Source => Image, New_Item => " | ");
-         end if;
-
-         One_Field : declare
-            Field : constant String := Value (Item, I);
-         begin -- One_Field
-            Append (Source => Image, New_Item => Field & (1 .. Max_Len (I) - Field'Length => Nbsp) );
-         end One_Field;
-      end loop All_Fields;
-
-      Sel.Insert (Text => +Image);
+      Sel.Insert (Text => Image (Item) );
    end Add_One;
 
    procedure Update_Max (Item : in Element) is
