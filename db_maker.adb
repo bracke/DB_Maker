@@ -1,6 +1,6 @@
 -- A generic for creating simple DBs (one table in an RDBMS) with PragmARC.Persistent_Skip_List_Unbounded and an Ada-GUI UI
 --
--- Copyright (C) 2023 by Jeffrey R. Carter
+-- Copyright (C) 2024 by Jeffrey R. Carter
 --
 with Ada.Characters.Handling;
 with Ada.Exceptions;
@@ -164,35 +164,20 @@ package body DB_Maker is
       return Item;
    end Get_From_Fields;
 
+   function Image (Item : in Element) return String;
+   -- Produces the text to add to Sel for Item
+
+   function Text_List (List : in out Lists.Persistent_Skip_List) return Ada_GUI.Text_List;
+   -- Converts the Elements in List into formatted strings using Image
+
    procedure Refresh is
       -- Empty
    begin -- Refresh
       Find_Max;
       Build_Header;
       Sel.Clear;
-
-      Sel.Set_Visibility (Visible => False);
-      Rand.Set_Visibility (Visible => False);
-      Quit.Set_Visibility (Visible => False);
-      Add.Set_Visibility (Visible => False);
-      Modif.Set_Visibility (Visible => False);
-      Delete.Set_Visibility (Visible => False);
-      Search.Set_Visibility (Visible => False);
-      Srch_Mr.Set_Visibility (Visible => False);
-      Clear.Set_Visibility (Visible => False);
-
-      Add_All (List => List);
-      Count.Set_Text (Text => Integer'Image (Sel.Length) );
-
-      Sel.Set_Visibility (Visible => True);
-      Rand.Set_Visibility (Visible => True);
-      Quit.Set_Visibility (Visible => True);
-      Add.Set_Visibility (Visible => True);
-      Modif.Set_Visibility (Visible => True);
-      Delete.Set_Visibility (Visible => True);
-      Search.Set_Visibility (Visible => True);
-      Srch_Mr.Set_Visibility (Visible => True);
-      Clear.Set_Visibility (Visible => True);
+      Sel.Append (Text => Text_List (List) );
+      Count.Set_Text (Text => Integer'Image (List.Length) );
    end Refresh;
 
    function Max_Changed return Boolean;
@@ -200,9 +185,6 @@ package body DB_Maker is
 
    function List_Index (Item : in Element) return Positive with
       Pre => List.Search (Item).Found;
-
-   function Image (Item : in Element) return String;
-   -- Produces the text to add to Sel for Item
 
    function Max_Changed return Boolean is
       Old_Max : constant Max_Length_List := Max_Len;
@@ -480,6 +462,27 @@ package body DB_Maker is
       Find_Max (List => List);
    end Find_Max;
 
+   function Text_List (List : in out Lists.Persistent_Skip_List) return Ada_GUI.Text_List is
+      Result : Ada_GUI.Text_List (1 .. List.Length);
+      Index  : Positive := 1;
+
+      procedure Format_One (Item : in Element);
+      -- Puts Image (Item) in Result (Index) and increments Index
+
+      procedure Format_All is new Lists.Iterate (Action => Format_One);
+
+      procedure Format_One (Item : in Element) is
+         -- Empty
+      begin -- Format_One
+         Result (Index) := +Image (Item);
+         Index := Index + 1;
+      end Format_One;
+   begin -- Text_List
+      Format_All (List => List);
+
+      return Result;
+   end Text_List;
+
    Event : Ada_GUI.Next_Result_Info;
 
    use type Ada_GUI.Event_Kind_ID;
@@ -492,10 +495,12 @@ begin -- DB_Maker
 
    Head := Ada_GUI.New_Background_Text (Text => "");
    Head.Set_Text_Font_Kind (Kind => Ada_GUI.Monospaced);
-   Sel := Ada_GUI.New_Selection_List (Break_Before => True, Height => 20);
+   Find_Max;
+   Build_Header;
+   Sel := Ada_GUI.New_Selection_List (Text => Text_List (List), Break_Before => True, Height => 20);
    Sel.Set_Text_Font_Kind (Kind => Ada_GUI.Monospaced);
 
-   Count := Ada_GUI.New_Text_Box (Break_Before => True, Label => "Number of items:");
+   Count := Ada_GUI.New_Text_Box (Text => Integer'Image (List.Length), Break_Before => True, Label => "Number of items:");
    Rand := Ada_GUI.New_Button (Text => "Random");
    Quit := Ada_GUI.New_Button (Text => "Quit");
 
@@ -514,8 +519,6 @@ begin -- DB_Maker
       Ada_GUI.New_Radio_Buttons (Row => 2, Column => 2, Label => (1 => +"or", 2 => +"and"), Orientation => Ada_GUI.Horizontal);
    Srch_Mr := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Search Again", Break_Before => True);
    Clear   := Ada_GUI.New_Button (Row => 2, Column => 2, Text => "Clear", Break_Before => True);
-
-   Refresh;
 
    All_Events : loop
       Handle_Invalid : begin
