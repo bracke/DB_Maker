@@ -10,7 +10,7 @@ project DB_Maker is
 
    type Kind_ID is ("relocatable", "static", "static-pic");
    Kind : Kind_ID :=
-     external ("PRAGMARC_LIBRARY_TYPE", external ("LIBRARY_TYPE", "static"));
+     external ("DB_MAKER_LIBRARY_TYPE", external ("LIBRARY_TYPE", "static"));
    for Library_Kind use Kind;
 
    package Compiler is
